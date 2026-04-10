@@ -170,6 +170,9 @@ const runs = db
   .all()
   .map(mapRun);
 
+const hiddenRunIds = new Set(["test-kras-123", "test-egfr-123"]);
+const visibleRuns = runs.filter((run) => !hiddenRunIds.has(run.run_id));
+
 const comparisons = db
   .prepare(
     `
@@ -182,8 +185,8 @@ const comparisons = db
   .map(mapComparison);
 
 const header = `/* eslint-disable */\n/* auto-generated from saved_runs.db - do not edit manually */\n\n`;
-const body = `${header}import type { SavedComparisonDetail, SavedRunDetail } from "@/lib/types";\n\nexport const savedRuns: SavedRunDetail[] = ${JSON.stringify(runs, null, 2)};\n\nexport const savedComparisons: SavedComparisonDetail[] = ${JSON.stringify(comparisons, null, 2)};\n`;
+const body = `${header}import type { SavedComparisonDetail, SavedRunDetail } from "@/lib/types";\n\nexport const savedRuns: SavedRunDetail[] = ${JSON.stringify(visibleRuns, null, 2)};\n\nexport const savedComparisons: SavedComparisonDetail[] = ${JSON.stringify(comparisons, null, 2)};\n`;
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, body, "utf8");
-console.log(`Wrote ${outputPath} with ${runs.length} runs and ${comparisons.length} comparisons.`);
+console.log(`Wrote ${outputPath} with ${visibleRuns.length} runs and ${comparisons.length} comparisons.`);
