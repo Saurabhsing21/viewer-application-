@@ -34,7 +34,8 @@ function toComparisonSummary(comp: SavedComparisonDetail): SavedComparisonSummar
 }
 
 export async function listSavedRuns(): Promise<SavedRunSummary[]> {
-  return savedRuns.map(toRunSummary);
+  const hiddenRunIds = new Set(["test-kras-123", "test-egfr-123"]);
+  return savedRuns.filter((run) => !hiddenRunIds.has(run.run_id)).map(toRunSummary);
 }
 
 export async function getSavedRun(savedId: string): Promise<SavedRunDetail> {
