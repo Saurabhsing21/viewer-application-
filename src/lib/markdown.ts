@@ -129,13 +129,96 @@ function unwrapStructuredValue(value: unknown): string | null {
   return null;
 }
 
+function convertListTables(markdown: string): string {
+  const lines = markdown.split("\n");
+  const out: string[] = [];
+  const tableLabels = new Set([
+    "Summary table",
+    "Metrics table",
+    "Ranked table",
+    "Association table",
+    "Literature table",
+  ]);
+
+  const pipeCells = (value: string) => value.split("|").map((part) => part.trim());
+
+  for (let i = 0; i < lines.length; ) {
+    const line = lines[i];
+    const stripped = line.trim();
+    if (!tableLabels.has(stripped)) {
+      out.push(line);
+      i += 1;
+      continue;
+    }
+
+    let j = i + 1;
+    while (j < lines.length && !lines[j].trim()) j += 1;
+    if (j >= lines.length) {
+      out.push(line);
+      i += 1;
+      continue;
+    }
+
+    let headers: string[] | null = null;
+    let rowStart = j;
+    const next = lines[j].trim();
+
+    if (next.startsWith("- Columns:")) {
+      headers = pipeCells(next.slice("- Columns:".length).trim());
+      rowStart = j + 1;
+      if (rowStart < lines.length && lines[rowStart].trim() === "- Rows:") {
+        rowStart += 1;
+      }
+    } else if (next.startsWith("- ") && next.includes("|")) {
+      headers = pipeCells(next.slice(2).trim());
+      rowStart = j + 1;
+    }
+
+    if (!headers || headers.some((cell) => !cell)) {
+      out.push(line);
+      i += 1;
+      continue;
+    }
+
+    const rows: string[][] = [];
+    let k = rowStart;
+    while (k < lines.length) {
+      const rowLine = lines[k].trim();
+      if (!rowLine || rowLine.startsWith("## ") || rowLine.startsWith("### ")) break;
+      if (!rowLine.startsWith("- ")) break;
+      const rowText = rowLine.slice(2).trim();
+      if (!rowText.includes("|")) break;
+      const cells = pipeCells(rowText);
+      if (cells.length !== headers.length) break;
+      rows.push(cells);
+      k += 1;
+    }
+
+    if (!rows.length) {
+      out.push(line);
+      i += 1;
+      continue;
+    }
+
+    out.push(line);
+    out.push(`| ${headers.join(" | ")} |`);
+    out.push(`| ${headers.map(() => "---").join(" | ")} |`);
+    for (const row of rows) {
+      out.push(`| ${row.join(" | ")} |`);
+    }
+    i = k;
+  }
+
+  return out.join("\n");
+}
+
 export function normalizeMarkdownReport(markdown: string | null | undefined): string {
   if (!markdown) return "";
 
   const normalized = unwrapStructuredValue(markdown);
   if (typeof normalized === "string" && normalized.length > 0) {
-    return normalized.trim();
+    return convertListTables(normalized.trim()).trim();
   }
 
-  return markdown.trim();
+  return convertListTables(markdown.trim()).trim();
 }
